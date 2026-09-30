@@ -1,0 +1,280 @@
+<!-- test -->
+<p>مرحبا</p><!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>تسجيل صوت سارة</title>
+<meta name="robots" content="noindex, nofollow">
+<meta charset="utf-8">
+<style>
+  :root{--bg:#fff8f1;--card:#ffffff;--ink:#3b2a22;--muted:#8a766b;--accent:#e9a47e;--accent-d:#c9774d;--green:#3f8f6b;--red:#c0483b;--line:#f0dfd2}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:"Segoe UI",Tahoma,Arial,sans-serif}
+  header{padding:14px 16px;background:var(--card);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5}
+  h1{font-size:19px;margin:0 0 8px}
+  .bar{height:10px;background:var(--line);border-radius:6px;overflow:hidden}
+  .bar>i{display:block;height:100%;background:var(--green);width:0;transition:width .3s}
+  .sub{font-size:13px;color:var(--muted);margin-top:6px}
+  .tabs{display:flex;gap:6px;overflow-x:auto;padding:10px 16px}
+  .tab{border:1px solid var(--line);background:var(--card);border-radius:18px;padding:6px 12px;font-size:13px;white-space:nowrap;cursor:pointer}
+  .tab.on{background:var(--accent);border-color:var(--accent);color:#fff}
+  main{max-width:640px;margin:0 auto;padding:0 16px 40px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px;margin-top:6px}
+  .meta{display:flex;flex-wrap:wrap;gap:6px;font-size:13px;margin-bottom:12px}
+  .chip{background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:3px 10px}
+  .chip.done{background:#e6f4ec;border-color:#bfe2cf;color:var(--green)}
+  .text{font-size:32px;line-height:1.9;text-align:center;margin:10px 0 14px;font-family:"Amiri","Traditional Arabic","Segoe UI",serif}
+  .note{background:#fff3e8;border-radius:10px;padding:8px 12px;font-size:14px;margin-bottom:12px}
+  .meter{height:14px;background:var(--line);border-radius:7px;overflow:hidden;margin:6px 0}
+  .meter>i{display:block;height:100%;width:0;background:var(--green)}
+  .warn{min-height:20px;font-size:14px;color:var(--red);text-align:center}
+  .row{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:10px}
+  button{font:inherit;font-size:17px;border:0;border-radius:12px;padding:14px 18px;cursor:pointer;min-width:120px}
+  button:disabled{opacity:.4;cursor:default}
+  .rec{background:var(--red);color:#fff}
+  .play{background:#fff;border:2px solid var(--accent-d);color:var(--accent-d)}
+  .ok{background:var(--green);color:#fff}
+  .ghost{background:transparent;color:var(--muted);min-width:0;font-size:15px}
+  .timer{text-align:center;font-size:15px;color:var(--muted)}
+  .msg{text-align:center;font-size:15px;margin-top:10px;min-height:22px}
+  .help{font-size:14px;line-height:1.8;color:var(--muted)}
+  details{margin-top:14px}
+  .list{font-size:14px;margin-top:8px}
+  .list div{padding:6px 4px;border-bottom:1px solid var(--line);cursor:pointer;display:flex;justify-content:space-between;gap:8px}
+  .list div span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .micbar{margin:10px 16px 0;padding:10px 12px;border-radius:12px;font-size:14px;background:#fff3e8;border:1px solid var(--line)}
+  .micbar.ok{background:#e6f4ec;border-color:#bfe2cf;color:var(--green)}
+  .micbar.bad{background:#fdecea;border-color:#f3c1bb;color:var(--red)}
+  .micbar button{min-width:0;padding:6px 12px;font-size:14px;margin-inline-start:8px;background:var(--accent-d);color:#fff}
+  .newbar{margin:10px 16px 0;padding:10px 12px;border-radius:12px;font-size:14px;background:#eaf2ff;border:1px solid #c9dcff;color:#2c5aa0}
+</style>
+</head>
+<body>
+<header>
+  <h1>تسجيل صوت سارة 🎙️</h1>
+  <div class="bar"><i id="prog"></i></div>
+  <div class="sub" id="progTxt">جارٍ التحميل…</div>
+</header>
+<div id="micBar" class="micbar">جارٍ طلب إذن الميكروفون…</div>
+<div id="newBar" class="newbar" style="display:none"></div>
+<div class="tabs" id="tabs"></div>
+<main>
+  <div class="card" id="card" style="display:none">
+    <div class="meta" id="meta"></div>
+    <div class="text" id="text"></div>
+    <div class="note" id="note" style="display:none"></div>
+    <div class="meter"><i id="lvl"></i></div>
+    <div class="warn" id="warn"></div>
+    <div class="timer" id="timer"></div>
+    <div class="row">
+      <button class="rec" id="bRec">⏺ تسجيل</button>
+      <button class="play" id="bPlay" disabled>▶ استماع</button>
+    </div>
+    <div class="row" id="savedRow" style="display:none">
+      <button class="ghost" id="bSaved">🔊 استماع للنسخة المحفوظة</button>
+    </div>
+    <div class="row">
+      <button class="ok" id="bOk" disabled>✔ اعتماد وحفظ</button>
+    </div>
+    <div class="msg" id="msg"></div>
+    <div class="row">
+      <button class="ghost" id="bPrev">→ السابق</button>
+      <button class="ghost" id="bNext">التالي ←</button>
+    </div>
+  </div>
+
+  <details>
+    <summary>طريقة التسجيل</summary>
+    <div class="help">
+      ١. سجّلي في غرفة هادئة، وأغلقي التلفاز والإشعارات.<br>
+      ٢. ضعي الجوال على بُعد شبر تقريبًا من فمك، وثابتًا.<br>
+      ٣. اضغطي «تسجيل»، انتظري ثانية، اقرئي النص بهدوء، انتظري ثانية، ثم اضغطي «إيقاف».<br>
+      ٤. اضغطي «استماع». إن لم يعجبك اضغطي «تسجيل» من جديد.<br>
+      ٥. إن كان جيدًا اضغطي «اعتماد وحفظ»، فينتقل للمقطع التالي.<br>
+      اقرئي النص كما هو مكتوب بالتشكيل، ولا تقرئي الملاحظات.
+    </div>
+  </details>
+  <details>
+    <summary>كل المقاطع</summary>
+    <div class="list" id="list"></div>
+  </details>
+</main>
+
+<script>
+const API = 'https://script.google.com/macros/s/AKfycbx5uaVLblYWoTPwYsBu5EUS3Kh8T4NvSzTz5uiM6fCciSUUbjhGPVChUdDrY2TE5vE4/exec';
+const KEY = new URLSearchParams(location.search).get('k') || '';
+async function apiGet(params){ const r = await fetch(API + '?' + new URLSearchParams(Object.assign({k: KEY}, params))); const j = await r.json(); if (!j.ok) throw new Error(j.error); return j; }
+async function apiPost(body){ const r = await fetch(API, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(Object.assign({k: KEY}, body)) }); const j = await r.json(); if (!j.ok) throw new Error(j.error); return j; }
+const SESSIONS = {'أ':'الحروف والكلمات','ب':'التعليمات للولد','ج':'التعليمات للبنت','د':'عبارات سارة','هـ':'القصص'};
+let clips = [], idx = 0, filter = null;
+let ctx, stream, proc, source, chunks = [], recording = false, wavBlob = null, audioEl = null, t0 = 0, tick = null, peak = 0, sumRms = 0, nRms = 0;
+const $ = id => document.getElementById(id);
+
+// ١) طلب إذن الميكروفون فور فتح الصفحة
+async function askMic(){
+  const bar = $('micBar');
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { bar.className = 'micbar bad'; bar.textContent = 'هذا المتصفح لا يدعم التسجيل. افتحي الرابط في Chrome أو Safari.'; return; }
+  try {
+    const s = await navigator.mediaDevices.getUserMedia({ audio: true });
+    s.getTracks().forEach(t => t.stop());
+    bar.className = 'micbar ok'; bar.textContent = '🎙️ الميكروفون جاهز';
+  } catch (e) {
+    bar.className = 'micbar bad';
+    bar.innerHTML = 'لم يُسمح بالميكروفون. اضغطي على أيقونة القفل بجانب عنوان الصفحة واختاري «السماح» للميكروفون، ثم <button id="bMic">حاولي مجددًا</button>';
+    $('bMic').onclick = askMic;
+  }
+}
+askMic();
+
+// ٢) الموقع تفاعلي: يقرأ الجدول مباشرة، ويتحقق كل دقيقة من وصول مقاطع جديدة
+function loadClips(first){
+  return apiGet({ action: 'list' }).then(j => {
+    const fresh = j.clips;
+    if (first) {
+      clips = fresh;
+      const f = clips.findIndex(c => !isDone(c));
+      idx = f < 0 ? 0 : f;
+      renderTabs(); render();
+      return;
+    }
+    const known = new Set(clips.map(c => c.file));
+    const added = fresh.filter(c => !known.has(c.file));
+    const cur = clips[idx] && clips[idx].file;
+    clips = fresh;
+    const ni = clips.findIndex(c => c.file === cur);
+    idx = ni < 0 ? 0 : ni;
+    if (added.length) {
+      $('newBar').style.display = '';
+      $('newBar').textContent = '✨ وصلت ' + added.length + ' مقاطع جديدة للتسجيل';
+      setTimeout(() => { $('newBar').style.display = 'none'; }, 15000);
+    }
+    renderTabs();
+    if (!recording && !wavBlob) render(); else { const done = clips.filter(isDone).length; $('prog').style.width = (done * 100 / clips.length) + '%'; $('progTxt').textContent = 'أنجزتِ ' + done + ' من ' + clips.length + ' مقطعًا'; }
+  });
+}
+if (!KEY) { $('progTxt').textContent = 'الرابط غير كامل. اطلبي الرابط الصحيح من إدارة المشروع.'; $('micBar').style.display = 'none'; }
+else {
+  loadClips(true).catch(err => { $('progTxt').textContent = 'تعذّر التحميل: ' + err.message; });
+  setInterval(() => { if (clips.length) loadClips(false).catch(() => {}); }, 60000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden && clips.length) loadClips(false).catch(() => {}); });
+}
+
+function isDone(c){ return c.status === 'سُجِّل' || c.status === 'معتمد'; }
+
+function renderTabs(){
+  const t = $('tabs'); t.innerHTML = '';
+  const mk = (label, val) => { const b = document.createElement('div'); b.className = 'tab' + (filter === val ? ' on' : ''); b.textContent = label; b.onclick = () => { filter = val; const list = view(); const i = list.findIndex(c => !isDone(c)); idx = clips.indexOf(list[i < 0 ? 0 : i]); renderTabs(); render(); }; t.appendChild(b); };
+  mk('الكل', null);
+  Object.keys(SESSIONS).forEach(s => { const n = clips.filter(c => c.session === s); if (n.length) mk(SESSIONS[s] + ' (' + n.filter(isDone).length + '/' + n.length + ')', s); });
+}
+function view(){ return filter ? clips.filter(c => c.session === filter) : clips; }
+
+function render(){
+  const done = clips.filter(isDone).length;
+  $('prog').style.width = (clips.length ? done * 100 / clips.length : 0) + '%';
+  $('progTxt').textContent = 'أنجزتِ ' + done + ' من ' + clips.length + ' مقطعًا';
+  const c = clips[idx]; if (!c) return;
+  $('card').style.display = '';
+  const pos = view().indexOf(c) + 1;
+  $('meta').innerHTML = '';
+  const chip = (txt, cls) => { const s = document.createElement('span'); s.className = 'chip ' + (cls || ''); s.textContent = txt; $('meta').appendChild(s); };
+  chip((SESSIONS[c.session] || c.session) + ' · ' + pos + '/' + view().length);
+  if (c.form) chip(c.form);
+  if (c.tone) chip('النبرة: ' + c.tone);
+  chip(isDone(c) ? '✔ ' + c.status : 'لم يُسجَّل', isDone(c) ? 'done' : '');
+  if (c.review) chip('ملاحظة المراجعة: ' + c.review);
+  $('text').textContent = c.text;
+  $('note').style.display = c.note ? '' : 'none';
+  $('note').textContent = c.note ? 'ملاحظة: ' + c.note : '';
+  resetTake();
+  $('savedRow').style.display = c.link ? '' : 'none';
+  $('bOk').textContent = c.link ? '✔ اعتماد الاستبدال' : '✔ اعتماد وحفظ';
+  $('msg').textContent = c.link ? 'هذا المقطع محفوظ' + (c.date ? ' (' + c.date + ')' : '') + '. يمكنك استبداله في أي وقت: سجّلي من جديد ثم اعتمدي الاستبدال. النسخة القديمة تُحفظ ولا تُحذف.' : '';
+  const L = $('list'); L.innerHTML = '';
+  clips.forEach((x, i) => { const d = document.createElement('div'); d.innerHTML = '<span></span><span></span>'; d.children[0].textContent = x.text; d.children[1].textContent = isDone(x) ? '✔' : '○'; d.onclick = () => { idx = i; render(); window.scrollTo(0,0); }; L.appendChild(d); });
+}
+
+function resetTake(){
+  wavBlob = null; $('bPlay').disabled = true; $('bOk').disabled = true; $('warn').textContent = ''; $('timer').textContent = ''; $('lvl').style.width = '0';
+}
+
+$('bRec').onclick = async () => {
+  if (recording) return stopRec();
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: 1 } });
+  } catch (e) { $('msg').textContent = 'لا يمكن الوصول إلى الميكروفون (' + e.name + '). اسمحي للمتصفح باستخدامه ثم حاولي مجددًا.'; return; }
+  ctx = new (window.AudioContext || window.webkitAudioContext)();
+  source = ctx.createMediaStreamSource(stream);
+  proc = ctx.createScriptProcessor(4096, 1, 1);
+  chunks = []; peak = 0; sumRms = 0; nRms = 0;
+  proc.onaudioprocess = e => {
+    const d = e.inputBuffer.getChannelData(0); chunks.push(new Float32Array(d));
+    let s = 0, p = 0; for (let i = 0; i < d.length; i++) { const v = Math.abs(d[i]); s += v * v; if (v > p) p = v; }
+    const rms = Math.sqrt(s / d.length); peak = Math.max(peak, p); if (rms > 0.01) { sumRms += rms; nRms++; }
+    $('lvl').style.width = Math.min(100, rms * 400) + '%';
+    $('lvl').style.background = p > 0.97 ? 'var(--red)' : 'var(--green)';
+  };
+  source.connect(proc); proc.connect(ctx.destination);
+  recording = true; resetTake();
+  $('bRec').textContent = '⏹ إيقاف'; $('msg').textContent = 'انتظري ثانية ثم ابدئي القراءة…';
+  t0 = Date.now(); tick = setInterval(() => { const s = (Date.now() - t0) / 1000; $('timer').textContent = s.toFixed(1) + ' ث'; if (s > 1) $('msg').textContent = 'اقرئي الآن 🎙️'; if (s > 60) stopRec(); }, 100);
+};
+
+function stopRec(){
+  recording = false; clearInterval(tick);
+  try { source.disconnect(); proc.disconnect(); } catch(e){}
+  stream.getTracks().forEach(t => t.stop());
+  const rate = ctx.sampleRate; ctx.close();
+  const len = chunks.reduce((a, c) => a + c.length, 0); const pcm = new Float32Array(len); let o = 0; chunks.forEach(c => { pcm.set(c, o); o += c.length; });
+  wavBlob = encodeWav(pcm, rate);
+  $('bRec').textContent = '⏺ تسجيل من جديد';
+  $('bPlay').disabled = false; $('bOk').disabled = false; $('lvl').style.width = '0';
+  const avg = nRms ? sumRms / nRms : 0;
+  $('warn').textContent = len / rate < 0.8 ? 'التسجيل قصير جدًا.' : peak > 0.97 ? 'الصوت عالٍ ومشوّش قليلًا؛ ابتعدي قليلًا عن الجوال وأعيدي.' : avg < 0.03 ? 'الصوت منخفض؛ اقتربي قليلًا من الجوال وأعيدي.' : '';
+  $('msg').textContent = 'استمعي للتسجيل، ثم اعتمديه أو سجّلي من جديد.';
+}
+
+function encodeWav(samples, rate){
+  const buf = new ArrayBuffer(44 + samples.length * 2), v = new DataView(buf);
+  const w = (o, s) => { for (let i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i)); };
+  w(0,'RIFF'); v.setUint32(4, 36 + samples.length * 2, true); w(8,'WAVE'); w(12,'fmt '); v.setUint32(16,16,true); v.setUint16(20,1,true); v.setUint16(22,1,true);
+  v.setUint32(24, rate, true); v.setUint32(28, rate * 2, true); v.setUint16(32,2,true); v.setUint16(34,16,true); w(36,'data'); v.setUint32(40, samples.length * 2, true);
+  let o = 44; for (let i = 0; i < samples.length; i++, o += 2) { const s = Math.max(-1, Math.min(1, samples[i])); v.setInt16(o, s < 0 ? s * 0x8000 : s * 0x7FFF, true); }
+  return new Blob([v], { type: 'audio/wav' });
+}
+
+$('bPlay').onclick = () => { if (!wavBlob) return; if (audioEl) audioEl.pause(); audioEl = new Audio(URL.createObjectURL(wavBlob)); audioEl.play(); };
+
+$('bSaved').onclick = async () => {
+  const c = clips[idx]; if (!c || !c.link) return;
+  $('bSaved').disabled = true; $('bSaved').textContent = '… جارٍ التحميل';
+  try {
+    const j = await apiGet({ action: 'audio', row: c.row });
+    const bytes = Uint8Array.from(atob(j.b64), ch => ch.charCodeAt(0));
+    if (audioEl) audioEl.pause(); audioEl = new Audio(URL.createObjectURL(new Blob([bytes], { type: 'audio/wav' }))); audioEl.play();
+  } catch (e) { $('msg').textContent = 'تعذّر تشغيل النسخة المحفوظة: ' + e.message; }
+  $('bSaved').disabled = false; $('bSaved').textContent = '🔊 استماع للنسخة المحفوظة';
+};
+
+$('bOk').onclick = () => {
+  const c = clips[idx]; if (!wavBlob || !c) return;
+  $('bOk').disabled = true; $('bRec').disabled = true; $('msg').textContent = 'جارٍ الحفظ…';
+  const r = new FileReader();
+  r.onload = () => {
+    const b64 = r.result.split(',')[1];
+    apiPost({ action: 'save', row: c.row, file: c.file, b64: b64 }).then(res => {
+      c.status = 'سُجِّل'; c.link = res.url; c.date = 'الآن'; $('bRec').disabled = false;
+      $('msg').textContent = res.replaced ? 'تم الاستبدال ✔ والنسخة القديمة محفوظة' : 'تم الحفظ ✔';
+      renderTabs();
+      const list = view(); const next = list.findIndex((x, i) => i > list.indexOf(c) && !isDone(x));
+      setTimeout(() => { if (next >= 0) idx = clips.indexOf(list[next]); render(); }, 700);
+    }).catch(err => { $('bOk').disabled = false; $('bRec').disabled = false; $('msg').textContent = 'لم يُحفظ: ' + err.message + ' — حاولي مرة أخرى.'; });
+  };
+  r.readAsDataURL(wavBlob);
+};
+
+$('bNext').onclick = () => { const l = view(); const i = l.indexOf(clips[idx]); if (i < l.length - 1) { idx = clips.indexOf(l[i + 1]); render(); } };
+$('bPrev').onclick = () => { const l = view(); const i = l.indexOf(clips[idx]); if (i > 0) { idx = clips.indexOf(l[i - 1]); render(); } };
+</script>
+</body>
+</html>
