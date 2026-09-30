@@ -100,7 +100,12 @@
 </main>
 
 <script>
-const API = 'https://script.google.com/macros/s/AKfycbx5uaVLblYWoTPwYsBu5EUS3Kh8T4NvSzTz5uiM6fCciSUUbjhGPVChUdDrY2TE5vE4/exec';
+// ?v=izz يفتح صفحة تسجيل عز (نسخة المسجّل الخاصة بعز)، وبدونها تبقى الصفحة لسارة
+const IZZ = new URLSearchParams(location.search).get('v') === 'izz';
+const API = IZZ
+  ? 'https://script.google.com/macros/s/AKfycbzTLyC7WElNHwyssfkEGN4NlC-JRD7JF4xJb5VGQ4oOlfy-ukHS2RwXeB7sWU_obGr-/exec'
+  : 'https://script.google.com/macros/s/AKfycbx5uaVLblYWoTPwYsBu5EUS3Kh8T4NvSzTz5uiM6fCciSUUbjhGPVChUdDrY2TE5vE4/exec';
+if (IZZ) { document.title = 'تسجيل صوت عز'; const h1 = document.querySelector('h1'); if (h1) h1.textContent = 'تسجيل صوت عز 🎙️'; }
 const KEY = new URLSearchParams(location.search).get('k') || '';
 async function apiGet(params){ const r = await fetch(API + '?' + new URLSearchParams(Object.assign({k: KEY}, params))); const j = await r.json(); if (!j.ok) throw new Error(j.error); return j; }
 async function apiPost(body){ const r = await fetch(API, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(Object.assign({k: KEY}, body)) }); const j = await r.json(); if (!j.ok) throw new Error(j.error); return j; }
