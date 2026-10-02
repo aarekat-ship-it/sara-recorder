@@ -129,8 +129,21 @@ if (IZZ) {
     .observe(document.body, { childList: true, subtree: true, characterData: true });
 }
 const KEY = new URLSearchParams(location.search).get('k') || '';
-async function apiGet(params){ const r = await fetch(API + '?' + new URLSearchParams(Object.assign({k: KEY}, params))); const j = await r.json(); if (!j.ok) throw new Error(j.error); return j; }
-async function apiPost(body){ const r = await fetch(API, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(Object.assign({k: KEY}, body)) }); const j = await r.json(); if (!j.ok) throw new Error(j.error); return j; }
+// قراءة الرد كـJSON حتى لو أرسلته Google داخل صفحة HTML، مع إعادة المحاولة عند بطء الخدمة أو بدايتها الباردة
+async function readJson_(r){ const t = await r.text(); try { return JSON.parse(t); } catch (e) { return JSON.parse(new DOMParser().parseFromString(t, 'text/html').body.innerText.trim()); } }
+async function apiGet(params){
+  let last;
+  for (let i = 0; i < 4; i++) {
+    try {
+      const r = await fetch(API + '?' + new URLSearchParams(Object.assign({k: KEY, _: Date.now()}, params)));
+      const j = await readJson_(r);
+      if (!j.ok) { const err = new Error(j.error); err.fatal = true; throw err; }
+      return j;
+    } catch (e) { last = e; if (e.fatal) throw e; await new Promise(res => setTimeout(res, 1500 * (i + 1))); }
+  }
+  throw new Error('الخدمة مشغولة الآن، أعد تحميل الصفحة بعد دقيقة (' + (last && last.message) + ')');
+}
+async function apiPost(body){ const r = await fetch(API, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(Object.assign({k: KEY}, body)) }); const j = await readJson_(r); if (!j.ok) throw new Error(j.error); return j; }
 const SESSIONS = {'أ':'الحروف والكلمات','ب':'التعليمات للولد','ج':'التعليمات للبنت','د':'عبارات سارة','هـ':'القصص'};
 let clips = [], idx = 0, filter = null;
 let ctx, stream, proc, source, chunks = [], recording = false, wavBlob = null, audioEl = null, t0 = 0, tick = null, peak = 0, sumRms = 0, nRms = 0;
