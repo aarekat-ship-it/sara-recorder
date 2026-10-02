@@ -106,6 +106,20 @@ const API = IZZ
   ? 'https://script.google.com/macros/s/AKfycbzTLyC7WElNHwyssfkEGN4NlC-JRD7JF4xJb5VGQ4oOlfy-ukHS2RwXeB7sWU_obGr-/exec'
   : 'https://script.google.com/macros/s/AKfycbx5uaVLblYWoTPwYsBu5EUS3Kh8T4NvSzTz5uiM6fCciSUUbjhGPVChUdDrY2TE5vE4/exec';
 if (IZZ) { document.title = 'تسجيل صوت عز'; const h1 = document.querySelector('h1'); if (h1) h1.textContent = 'تسجيل صوت عز 🎙️'; }
+// صفحة عز تخاطب المسجّل بالمذكر (المسجّل رجل)، وصفحة سارة بالمؤنث
+if (IZZ) {
+  const MASC = [['اعتمديه','اعتمده'],['اعتمدي','اعتمد'],['سجّلي','سجّل'],['أغلقي','أغلق'],['ضعي','ضع'],['اضغطي','اضغط'],['انتظري','انتظر'],
+    ['اقرئي','اقرأ'],['تقرئي','تقرأ'],['حاولي','حاول'],['افتحي','افتح'],['اختاري','اختر'],['أنجزتِ','أنجزتَ'],['اطلبي','اطلب'],['اسمحي','اسمح'],
+    ['ابدئي','ابدأ'],['ابتعدي','ابتعد'],['أعيدي','أعد'],['اقتربي','اقترب'],['استمعي','استمع'],['عبارات سارة','العبارات المشتركة']];
+  const masc = s => MASC.reduce((t, [f, m]) => t.split(f).join(m), s);
+  const fix = n => {
+    if (n.nodeType === 3) { const v = masc(n.nodeValue); if (v !== n.nodeValue) n.nodeValue = v; }
+    else if (n.nodeType === 1 && n.tagName !== 'SCRIPT') n.childNodes.forEach(fix);
+  };
+  fix(document.body);
+  new MutationObserver(ms => ms.forEach(m => { if (m.type === 'characterData') fix(m.target); else m.addedNodes.forEach(fix); }))
+    .observe(document.body, { childList: true, subtree: true, characterData: true });
+}
 const KEY = new URLSearchParams(location.search).get('k') || '';
 async function apiGet(params){ const r = await fetch(API + '?' + new URLSearchParams(Object.assign({k: KEY}, params))); const j = await r.json(); if (!j.ok) throw new Error(j.error); return j; }
 async function apiPost(body){ const r = await fetch(API, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(Object.assign({k: KEY}, body)) }); const j = await r.json(); if (!j.ok) throw new Error(j.error); return j; }
