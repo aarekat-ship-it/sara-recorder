@@ -100,17 +100,20 @@
 </main>
 
 <script>
-// ?v=izz يفتح صفحة تسجيل عز (نسخة المسجّل الخاصة بعز)، وبدونها تبقى الصفحة لسارة
-// ?v=soso2 يفتح صفحة «سوسو 2» (نسخة ثانية لصوت سوسو تسجّلها هلين)
-const V = new URLSearchParams(location.search).get('v');
-const IZZ = V === 'izz';
-const SOSO2 = V === 'soso2';
-const API = SOSO2 ? 'https://script.google.com/macros/s/AKfycbzOyqow_tIHUiVh-1Z2W0VLS2J4_d_eWTrCQzQhL28mH-Up9lbP7rZkjcG4JoCUkWL_4g/exec'
-  : IZZ
-  ? 'https://script.google.com/macros/s/AKfycbzTLyC7WElNHwyssfkEGN4NlC-JRD7JF4xJb5VGQ4oOlfy-ukHS2RwXeB7sWU_obGr-/exec'
-  : 'https://script.google.com/macros/s/AKfycbx5uaVLblYWoTPwYsBu5EUS3Kh8T4NvSzTz5uiM6fCciSUUbjhGPVChUdDrY2TE5vE4/exec';
-if (SOSO2) { document.title = 'تسجيل صوت سوسو — النسخة الثانية'; const h1 = document.querySelector('h1'); if (h1) h1.textContent = 'تسجيل صوت سوسو — النسخة الثانية 🎙️'; }
-if (IZZ) { document.title = 'تسجيل صوت عز'; const h1 = document.querySelector('h1'); if (h1) h1.textContent = 'تسجيل صوت عز 🎙️'; }
+// كل مسجِّل له رابطه: بدون v = سوسو (سارة) · v=soso2 سوسو 2 (هلين) · v=soso3 سوسو 3 (هبة)
+// v=izz عز (عبدالعزيز) · v=izz2 عز 2 (عمر). صفحات عز بالمذكر، وصفحات سوسو بالمؤنث.
+const V = new URLSearchParams(location.search).get('v') || 'soso';
+const RECORDERS = {
+  soso:  { api: 'AKfycbx5uaVLblYWoTPwYsBu5EUS3Kh8T4NvSzTz5uiM6fCciSUUbjhGPVChUdDrY2TE5vE4', title: 'تسجيل صوت سارة' },
+  soso2: { api: 'AKfycbzOyqow_tIHUiVh-1Z2W0VLS2J4_d_eWTrCQzQhL28mH-Up9lbP7rZkjcG4JoCUkWL_4g', title: 'تسجيل صوت سوسو — النسخة الثانية' },
+  soso3: { api: 'AKfycbx_VG9RwxKtfeXbBikDQV5fsJNBR-i7QL2D4jwDDHoafsPpQvEMOWDJwYp2cWaPQt_m8g', title: 'تسجيل صوت سوسو — النسخة الثالثة' },
+  izz:   { api: 'AKfycbzTLyC7WElNHwyssfkEGN4NlC-JRD7JF4xJb5VGQ4oOlfy-ukHS2RwXeB7sWU_obGr-', title: 'تسجيل صوت عز' },
+  izz2:  { api: 'AKfycbxpWEdJS6RfrMAYK7IFvJ4iS7U8dWp9t_LKQugdTe6dJDvlhpfUlJpfIevhv0rw6zgv', title: 'تسجيل صوت عز — النسخة الثانية' }
+};
+const REC = RECORDERS[V] || RECORDERS.soso;
+const IZZ = V === 'izz' || V === 'izz2';
+const API = 'https://script.google.com/macros/s/' + REC.api + '/exec';
+{ document.title = REC.title; const h1 = document.querySelector('h1'); if (h1) h1.textContent = REC.title + ' 🎙️'; }
 // صفحة عز تخاطب المسجّل بالمذكر (المسجّل رجل)، وصفحة سارة بالمؤنث
 if (IZZ) {
   const MASC = [['اعتمديه','اعتمده'],['اعتمدي','اعتمد'],['سجّلي','سجّل'],['أغلقي','أغلق'],['ضعي','ضع'],['اضغطي','اضغط'],['انتظري','انتظر'],
