@@ -144,7 +144,7 @@ async function apiGet(params){
   throw new Error('الخدمة مشغولة الآن، أعد تحميل الصفحة بعد دقيقة (' + (last && last.message) + ')');
 }
 async function apiPost(body){ const r = await fetch(API, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(Object.assign({k: KEY}, body)) }); const j = await readJson_(r); if (!j.ok) throw new Error(j.error); return j; }
-const SESSIONS = {'أ':'الحروف والكلمات','ب':'التعليمات للولد','ج':'التعليمات للبنت','د':'عبارات سارة','هـ':'القصص'};
+const SESSIONS = {'أ':'الحروف والكلمات','ب':'التعليمات للولد','ج':'التعليمات للبنت','د':'عبارات سارة','هـ':'القصص','و':'قراءة الاستنساخ'};
 let clips = [], idx = 0, filter = null;
 let ctx, stream, proc, source, chunks = [], recording = false, wavBlob = null, audioEl = null, t0 = 0, tick = null, peak = 0, sumRms = 0, nRms = 0;
 const $ = id => document.getElementById(id);
