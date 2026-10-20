@@ -45,6 +45,18 @@
   .micbar.ok{background:#e6f4ec;border-color:#bfe2cf;color:var(--green)}
   .micbar.bad{background:#fdecea;border-color:#f3c1bb;color:var(--red)}
   .micbar button{min-width:0;padding:6px 12px;font-size:14px;margin-inline-start:8px;background:var(--accent-d);color:#fff}
+  .search{margin:10px 16px 0;position:relative}
+  .search input{width:100%;font:inherit;font-size:17px;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--ink)}
+  .search input:focus{outline:2px solid var(--accent);border-color:var(--accent)}
+  .results{max-width:640px;margin:8px auto 0;padding:0 16px}
+  .res{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin-bottom:8px}
+  .res .rt{font-size:24px;line-height:1.8;font-family:"Amiri","Traditional Arabic","Segoe UI",serif}
+  .res .rm{display:flex;flex-wrap:wrap;gap:6px;font-size:13px;margin:4px 0 8px}
+  .res .rb{display:flex;gap:8px;flex-wrap:wrap}
+  .res button{min-width:0;font-size:15px;padding:9px 14px}
+  .chip.wait{background:#fff7e0;border-color:#f1dc9c;color:#8a6a10}
+  .none{background:var(--card);border:1px dashed var(--line);border-radius:14px;padding:14px;text-align:center;font-size:15px}
+  .none button{margin-top:10px;min-width:0;font-size:15px;padding:9px 14px;background:var(--accent-d);color:#fff}
   .newbar{margin:10px 16px 0;padding:10px 12px;border-radius:12px;font-size:14px;background:#eaf2ff;border:1px solid #c9dcff;color:#2c5aa0}
 </style>
 </head>
@@ -56,6 +68,8 @@
 </header>
 <div id="micBar" class="micbar">جارٍ طلب إذن الميكروفون…</div>
 <div id="newBar" class="newbar" style="display:none"></div>
+<div class="search"><input id="q" type="search" placeholder="🔎 ابحثي عن كلمة… (بلا تشكيل)" autocomplete="off" aria-label="البحث عن كلمة"></div>
+<div class="results" id="results" style="display:none"></div>
 <div class="tabs" id="tabs"></div>
 <main>
   <div class="card" id="card" style="display:none">
@@ -145,7 +159,7 @@ async function apiGet(params){
 }
 async function apiPost(body){ const r = await fetch(API, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(Object.assign({k: KEY}, body)) }); const j = await readJson_(r); if (!j.ok) throw new Error(j.error); return j; }
 const SESSIONS = {'أ':'الحروف والكلمات','ب':'التعليمات للولد','ج':'التعليمات للبنت','د':'عبارات سارة','هـ':'القصص','و':'قراءة الاستنساخ'};
-let clips = [], idx = 0, filter = null;
+let clips = [], idx = 0, filter = null, confirmRow = -1;
 let ctx, stream, proc, source, chunks = [], recording = false, wavBlob = null, audioEl = null, t0 = 0, tick = null, peak = 0, sumRms = 0, nRms = 0;
 const $ = id => document.getElementById(id);
 
@@ -188,6 +202,7 @@ function loadClips(first){
       setTimeout(() => { $('newBar').style.display = 'none'; }, 15000);
     }
     renderTabs();
+    if ($('q').value.trim()) doSearch();
     if (!recording && !wavBlob) render(); else { const done = clips.filter(isDone).length; $('prog').style.width = (done * 100 / clips.length) + '%'; $('progTxt').textContent = 'أنجزتِ ' + done + ' من ' + clips.length + ' مقطعًا'; }
   });
 }
@@ -199,6 +214,52 @@ else {
 }
 
 function isDone(c){ return c.status === 'سُجِّل' || c.status === 'معتمد'; }
+
+// ٣) البحث عن كلمة (D-136): يتجاهل التشكيل والتطويل، ويوحّد أ/إ/آ/ٱ→ا وة→ه وى→ي، ويجد الكلمة بـ«الـ» وبدونها.
+// البحث للقراءة فقط، ولا يضيف كلمة جديدة إلى الجدول.
+function norm(t){
+  return String(t || '').replace(/[\u0610-\u061A\u064B-\u065F\u0670\u06D6-\u06ED\u0640]/g, '')
+    .replace(/[أإآٱ]/g, 'ا').replace(/ة/g, 'ه').replace(/ى/g, 'ي').replace(/ؤ/g, 'و').replace(/ئ/g, 'ي')
+    .replace(/[^\u0621-\u064Aa-zA-Z0-9\s]/g, ' ')
+    .split(/\s+/).filter(Boolean).map(w => w.length > 3 && w.startsWith('ال') ? w.slice(2) : w).join(' ');
+}
+function stateOf(c){ return c.status === 'معتمد' ? ['✔ معتمد', 'done'] : c.status === 'سُجِّل' ? ['سُجِّل — ينتظر الاعتماد', 'wait'] : ['لم يُسجَّل', '']; }
+function goTo(c){ filter = null; idx = clips.indexOf(c); $('q').value = ''; doSearch(); renderTabs(); render(); $('card').scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+async function playSaved(c, btn){
+  btn.disabled = true; const old = btn.textContent; btn.textContent = '… جارٍ التحميل';
+  try {
+    const j = await apiGet({ action: 'audio', row: c.row });
+    const bytes = Uint8Array.from(atob(j.b64), ch => ch.charCodeAt(0));
+    if (audioEl) audioEl.pause(); audioEl = new Audio(URL.createObjectURL(new Blob([bytes], { type: 'audio/wav' }))); audioEl.play();
+  } catch (e) { btn.textContent = 'تعذّر التشغيل'; setTimeout(() => { btn.textContent = old; btn.disabled = false; }, 2000); return; }
+  btn.disabled = false; btn.textContent = old;
+}
+function doSearch(){
+  const box = $('results'), raw = $('q').value.trim(), q = norm(raw);
+  if (!q) { box.style.display = 'none'; box.innerHTML = ''; $('card').style.display = clips.length ? '' : 'none'; return; }
+  box.style.display = ''; box.innerHTML = ''; $('card').style.display = 'none';
+  const hits = clips.filter(c => norm(c.text).includes(q)).slice(0, 30);
+  if (!hits.length) {
+    const d = document.createElement('div'); d.className = 'none';
+    d.textContent = 'لا توجد «' + raw + '» في قائمة التسجيل. لا تسجّليها الآن؛ اطلبي إضافتها أولًا.';
+    const b = document.createElement('button'); b.textContent = '📩 اطلبي إضافتها';
+    b.onclick = () => { location.href = 'https://wa.me/?text=' + encodeURIComponent('طلب إضافة كلمة إلى قائمة تسجيل سارة: ' + raw); };
+    d.appendChild(document.createElement('br')); d.appendChild(b); box.appendChild(d); return;
+  }
+  hits.forEach(c => {
+    const d = document.createElement('div'); d.className = 'res';
+    const t = document.createElement('div'); t.className = 'rt'; t.textContent = c.text; d.appendChild(t);
+    const m = document.createElement('div'); m.className = 'rm';
+    const [lbl, cls] = stateOf(c);
+    [[lbl, cls], [SESSIONS[c.session] || c.session, ''], c.form ? [c.form, ''] : null].filter(Boolean).forEach(([x, k]) => { const s = document.createElement('span'); s.className = 'chip ' + k; s.textContent = x; m.appendChild(s); });
+    d.appendChild(m);
+    const r = document.createElement('div'); r.className = 'rb';
+    if (c.link) { const p = document.createElement('button'); p.className = 'play'; p.textContent = '🔊 سماع'; p.onclick = () => playSaved(c, p); r.appendChild(p); }
+    const g = document.createElement('button'); g.className = 'rec'; g.textContent = c.link ? '⏺ إعادة التسجيل' : '⏺ تسجيل'; g.onclick = () => goTo(c); r.appendChild(g);
+    d.appendChild(r); box.appendChild(d);
+  });
+}
+$('q').addEventListener('input', doSearch);
 
 function renderTabs(){
   const t = $('tabs'); t.innerHTML = '';
@@ -213,7 +274,7 @@ function render(){
   $('prog').style.width = (clips.length ? done * 100 / clips.length : 0) + '%';
   $('progTxt').textContent = 'أنجزتِ ' + done + ' من ' + clips.length + ' مقطعًا';
   const c = clips[idx]; if (!c) return;
-  $('card').style.display = '';
+  $('card').style.display = $('q').value.trim() ? 'none' : '';
   const pos = view().indexOf(c) + 1;
   $('meta').innerHTML = '';
   const chip = (txt, cls) => { const s = document.createElement('span'); s.className = 'chip ' + (cls || ''); s.textContent = txt; $('meta').appendChild(s); };
@@ -234,6 +295,7 @@ function render(){
 }
 
 function resetTake(){
+  confirmRow = -1;
   wavBlob = null; $('bPlay').disabled = true; $('bOk').disabled = true; $('warn').textContent = ''; $('timer').textContent = ''; $('lvl').style.width = '0';
 }
 
@@ -297,6 +359,13 @@ $('bSaved').onclick = async () => {
 
 $('bOk').onclick = () => {
   const c = clips[idx]; if (!wavBlob || !c) return;
+  if (c.link && confirmRow !== c.row) {
+    confirmRow = c.row;
+    $('msg').textContent = (c.status === 'معتمد' ? 'هذا المقطع معتمد. ' : 'هذا المقطع محفوظ مسبقًا. ') + 'التسجيل الجديد يحتاج اعتمادًا جديدًا من عبدالعزيز قبل دخوله اللعبة. اضغطي «نعم، استبدلي» للتأكيد، أو سجّلي من جديد.';
+    $('bOk').textContent = '✔ نعم، استبدلي';
+    return;
+  }
+  confirmRow = -1;
   $('bOk').disabled = true; $('bRec').disabled = true; $('msg').textContent = 'جارٍ الحفظ…';
   const r = new FileReader();
   r.onload = () => {
