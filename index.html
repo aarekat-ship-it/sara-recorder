@@ -57,6 +57,15 @@
   .chip.wait{background:#fff7e0;border-color:#f1dc9c;color:#8a6a10}
   .none{background:var(--card);border:1px dashed var(--line);border-radius:14px;padding:14px;text-align:center;font-size:15px}
   .none button{margin-top:10px;min-width:0;font-size:15px;padding:9px 14px;background:var(--accent-d);color:#fff}
+  .worlds{display:flex;gap:8px;overflow-x:auto;padding:10px 16px 2px}
+  .wchip{flex:0 0 auto;border:2px solid var(--line);background:var(--card);border-radius:16px;padding:8px 12px;display:flex;flex-direction:column;align-items:flex-start;gap:4px;min-width:104px;cursor:pointer;font:inherit;text-align:right}
+  .wchip b{font-size:14px;display:flex;align-items:center;gap:6px;white-space:nowrap}
+  .wchip i{display:inline-block;width:12px;height:12px;border-radius:50%}
+  .wchip small{font-size:12px;color:var(--muted)}
+  .wchip .wbar{width:100%;height:5px;background:var(--line);border-radius:3px;overflow:hidden}
+  .wchip .wbar>span{display:block;height:100%}
+  .wchip.on{border-color:var(--accent-d);background:#fff3e8}
+  .winfo{margin:6px 16px 0;font-size:13px;color:var(--muted)}
   .newbar{margin:10px 16px 0;padding:10px 12px;border-radius:12px;font-size:14px;background:#eaf2ff;border:1px solid #c9dcff;color:#2c5aa0}
 </style>
 </head>
@@ -70,6 +79,8 @@
 <div id="newBar" class="newbar" style="display:none"></div>
 <div class="search"><input id="q" type="search" placeholder="🔎 ابحثي عن كلمة… (بلا تشكيل)" autocomplete="off" aria-label="البحث عن كلمة"></div>
 <div class="results" id="results" style="display:none"></div>
+<div class="worlds" id="worlds" role="tablist" aria-label="اختاري العالم"></div>
+<div class="winfo" id="winfo" style="display:none"></div>
 <div class="tabs" id="tabs"></div>
 <main>
   <div class="card" id="card" style="display:none">
@@ -160,6 +171,54 @@ async function apiGet(params){
 async function apiPost(body){ const r = await fetch(API, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(Object.assign({k: KEY}, body)) }); const j = await readJson_(r); if (!j.ok) throw new Error(j.error); return j; }
 const SESSIONS = {'أ':'الحروف والكلمات','ب':'التعليمات للولد','ج':'التعليمات للبنت','د':'عبارات سارة','هـ':'القصص','و':'قراءة الاستنساخ'};
 let clips = [], idx = 0, filter = null, confirmRow = -1;
+// ٤) العوالم (D-142): تختار سارة العالم فتظهر كل مقاطعه، وأولها ما لم يُسجَّل
+let WORLDS = null, worldSel = null;
+const keyOf = c => String(c.file || '').replace(/\.wav$/, '').replace(/^[^.]+\./, '');
+function inSet(w, k){ return w.set.has(k) || w.prefixes.some(p => k.startsWith(p)); }
+function inWorld(c, id){
+  const k = keyOf(c);
+  if (id === 'next') return /أولوية ١/.test(c.review || '');
+  const w = WORLDS && WORLDS.byId[id]; if (!w) return false;
+  return inSet(w, k) || inSet(WORLDS.common, k);
+}
+fetch('worlds-recording.json', { cache: 'no-store' }).then(r => r.json()).then(d => {
+  const mk = w => ({ ...w, set: new Set(w.keys || []), prefixes: w.prefixes || [] });
+  WORLDS = { list: d.worlds.map(mk), common: mk({ keys: d.common, prefixes: d.commonPrefixes }), byId: {} };
+  WORLDS.list.forEach(w => { WORLDS.byId[w.id] = w; });
+  if (clips.length) renderWorlds();
+}).catch(() => {});
+function renderWorlds(){
+  const box = $('worlds'); if (!WORLDS || !box) return; box.innerHTML = '';
+  const chip = (id, name, color) => {
+    const list = id ? clips.filter(c => inWorld(c, id)) : clips;
+    if (id && !list.length) return;
+    const done = list.filter(isDone).length;
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'wchip' + (worldSel === id ? ' on' : '');
+    b.setAttribute('aria-pressed', worldSel === id ? 'true' : 'false');
+    const t = document.createElement('b'); if (color) { const d = document.createElement('i'); d.style.background = color; t.appendChild(d); }
+    t.appendChild(document.createTextNode(name + (list.length && done === list.length ? ' ✔' : '')));
+    const sm = document.createElement('small'); sm.textContent = done + ' / ' + list.length;
+    const bar = document.createElement('div'); bar.className = 'wbar'; const fill = document.createElement('span');
+    fill.style.width = (list.length ? done * 100 / list.length : 0) + '%'; fill.style.background = color || 'var(--green)'; bar.appendChild(fill);
+    b.append(t, sm, bar);
+    b.onclick = () => pickWorld(id);
+    box.appendChild(b);
+  };
+  chip(null, 'كل المقاطع', '');
+  chip('next', 'التحديث القادم', '#c9774d');
+  WORLDS.list.forEach(w => chip(w.id, w.name, w.color));
+  const info = $('winfo');
+  if (worldSel) {
+    const list = view(); const left = list.filter(c => !isDone(c)).length;
+    info.style.display = ''; info.textContent = left ? ('بقي ' + left + ' مقطعًا لإنجاز هذا القسم. المقاطع المشتركة تُسجَّل مرة واحدة وتُحسب في كل العوالم.') : 'اكتمل هذا القسم ✔';
+  } else info.style.display = 'none';
+}
+function pickWorld(id){
+  worldSel = id; filter = null;
+  const list = view(); const i = list.findIndex(c => !isDone(c));
+  if (list.length) idx = clips.indexOf(list[i < 0 ? 0 : i]);
+  $('q').value = ''; doSearch(); renderTabs(); renderWorlds(); render();
+}
 let ctx, stream, proc, source, chunks = [], recording = false, wavBlob = null, audioEl = null, t0 = 0, tick = null, peak = 0, sumRms = 0, nRms = 0;
 const $ = id => document.getElementById(id);
 
@@ -187,7 +246,7 @@ function loadClips(first){
       clips = fresh;
       const f = clips.findIndex(c => !isDone(c));
       idx = f < 0 ? 0 : f;
-      renderTabs(); render();
+      renderTabs(); renderWorlds(); render();
       return;
     }
     const known = new Set(clips.map(c => c.file));
@@ -201,7 +260,7 @@ function loadClips(first){
       $('newBar').textContent = '✨ وصلت ' + added.length + ' مقاطع جديدة للتسجيل';
       setTimeout(() => { $('newBar').style.display = 'none'; }, 15000);
     }
-    renderTabs();
+    renderTabs(); renderWorlds();
     if ($('q').value.trim()) doSearch();
     if (!recording && !wavBlob) render(); else { const done = clips.filter(isDone).length; $('prog').style.width = (done * 100 / clips.length) + '%'; $('progTxt').textContent = 'أنجزتِ ' + done + ' من ' + clips.length + ' مقطعًا'; }
   });
@@ -238,7 +297,7 @@ function doSearch(){
   const box = $('results'), raw = $('q').value.trim(), q = norm(raw);
   if (!q) { box.style.display = 'none'; box.innerHTML = ''; $('card').style.display = clips.length ? '' : 'none'; return; }
   box.style.display = ''; box.innerHTML = ''; $('card').style.display = 'none';
-  const hits = clips.filter(c => norm(c.text).includes(q)).slice(0, 30);
+  const hits = (worldSel ? view() : clips).filter(c => norm(c.text).includes(q)).slice(0, 30);
   if (!hits.length) {
     const d = document.createElement('div'); d.className = 'none';
     d.textContent = 'لا توجد «' + raw + '» في قائمة التسجيل. لا تسجّليها الآن؛ اطلبي إضافتها أولًا.';
@@ -267,7 +326,16 @@ function renderTabs(){
   mk('الكل', null);
   Object.keys(SESSIONS).forEach(s => { const n = clips.filter(c => c.session === s); if (n.length) mk(SESSIONS[s] + ' (' + n.filter(isDone).length + '/' + n.length + ')', s); });
 }
-function view(){ return filter ? clips.filter(c => c.session === filter) : clips; }
+function view(){
+  let l = filter ? clips.filter(c => c.session === filter) : clips;
+  if (worldSel && WORLDS) {
+    l = l.filter(c => inWorld(c, worldSel));
+    const own = c => worldSel === 'next' || inSet(WORLDS.byId[worldSel], keyOf(c));
+    const rank = c => (isDone(c) ? 2 : 0) + (own(c) ? 0 : 1);
+    l = l.map((c, i) => [c, i]).sort((a, b) => rank(a[0]) - rank(b[0]) || a[1] - b[1]).map(x => x[0]);
+  }
+  return l;
+}
 
 function render(){
   const done = clips.filter(isDone).length;
@@ -291,7 +359,7 @@ function render(){
   $('bOk').textContent = c.link ? '✔ اعتماد الاستبدال' : '✔ اعتماد وحفظ';
   $('msg').textContent = c.link ? 'هذا المقطع محفوظ' + (c.date ? ' (' + c.date + ')' : '') + '. يمكنك استبداله في أي وقت: سجّلي من جديد ثم اعتمدي الاستبدال. النسخة القديمة تُحفظ ولا تُحذف.' : '';
   const L = $('list'); L.innerHTML = '';
-  clips.forEach((x, i) => { const d = document.createElement('div'); d.innerHTML = '<span></span><span></span>'; d.children[0].textContent = x.text; d.children[1].textContent = isDone(x) ? '✔' : '○'; d.onclick = () => { idx = i; render(); window.scrollTo(0,0); }; L.appendChild(d); });
+  view().forEach((x) => { const i = clips.indexOf(x); const d = document.createElement('div'); d.innerHTML = '<span></span><span></span>'; d.children[0].textContent = x.text; d.children[1].textContent = isDone(x) ? '✔' : '○'; d.onclick = () => { idx = i; render(); window.scrollTo(0,0); }; L.appendChild(d); });
 }
 
 function resetTake(){
@@ -373,8 +441,8 @@ $('bOk').onclick = () => {
     apiPost({ action: 'save', row: c.row, file: c.file, b64: b64 }).then(res => {
       c.status = 'سُجِّل'; c.link = res.url; c.date = 'الآن'; $('bRec').disabled = false;
       $('msg').textContent = res.replaced ? 'تم الاستبدال ✔ والنسخة القديمة محفوظة' : 'تم الحفظ ✔';
-      renderTabs();
-      const list = view(); const next = list.findIndex((x, i) => i > list.indexOf(c) && !isDone(x));
+      renderTabs(); renderWorlds();
+      const list = view(); const next = worldSel ? list.findIndex(x => !isDone(x)) : list.findIndex((x, i) => i > list.indexOf(c) && !isDone(x));
       setTimeout(() => { if (next >= 0) idx = clips.indexOf(list[next]); render(); }, 700);
     }).catch(err => { $('bOk').disabled = false; $('bRec').disabled = false; $('msg').textContent = 'لم يُحفظ: ' + err.message + ' — حاولي مرة أخرى.'; });
   };
