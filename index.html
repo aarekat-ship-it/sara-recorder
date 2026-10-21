@@ -177,18 +177,18 @@ const keyOf = c => String(c.file || '').replace(/\.wav$/, '').replace(/^[^.]+\./
 function inSet(w, k){ return w.set.has(k) || w.prefixes.some(p => k.startsWith(p)); }
 function inWorld(c, id){
   const k = keyOf(c);
-  if (id === 'next') return /أولوية ١/.test(c.review || '');
+  if (id === 'next') return (WORLDS && WORLDS.launch && inSet(WORLDS.launch, k)) || /أولوية ١/.test(c.review || '');
   const w = WORLDS && WORLDS.byId[id]; if (!w) return false;
-  return inSet(w, k) || inSet(WORLDS.common, k);
+  return inSet(w, k) || (inSet(WORLDS.common, k) && !!WORLDS.launch && inSet(WORLDS.launch, k));
 }
 fetch('worlds-recording.json', { cache: 'no-store' }).then(r => r.json()).then(d => {
   const mk = w => ({ ...w, set: new Set(w.keys || []), prefixes: w.prefixes || [] });
-  WORLDS = { list: d.worlds.map(mk), common: mk({ keys: d.common, prefixes: d.commonPrefixes }), byId: {} };
+  WORLDS = { list: d.worlds.map(mk), common: mk({ keys: d.common, prefixes: d.commonPrefixes }), launch: d.launch ? mk(d.launch) : null, byId: {} };
   WORLDS.list.forEach(w => { WORLDS.byId[w.id] = w; });
   if (clips.length) renderWorlds();
 }).catch(() => {});
 function renderWorlds(){
-  const box = $('worlds'); if (!WORLDS || !box) return; box.innerHTML = '';
+  const box = $('worlds'); if (!WORLDS || !box) return; box.innerHTML = ''; let firstOpen = null, selBtn = null;
   const chip = (id, name, color) => {
     const list = id ? clips.filter(c => inWorld(c, id)) : clips;
     if (id && !list.length) return;
@@ -197,16 +197,23 @@ function renderWorlds(){
     b.setAttribute('aria-pressed', worldSel === id ? 'true' : 'false');
     const t = document.createElement('b'); if (color) { const d = document.createElement('i'); d.style.background = color; t.appendChild(d); }
     t.appendChild(document.createTextNode(name + (list.length && done === list.length ? ' ✔' : '')));
-    const sm = document.createElement('small'); sm.textContent = done + ' / ' + list.length;
+    const left = list.length - done;
+    const big = document.createElement('span'); big.style.cssText = 'font-size:16px;font-weight:700;color:' + (left ? 'var(--red)' : 'var(--green)');
+    big.textContent = left ? ('بقي ' + left) : 'مكتمل';
+    const sm = document.createElement('small'); sm.textContent = 'من ' + list.length;
     const bar = document.createElement('div'); bar.className = 'wbar'; const fill = document.createElement('span');
     fill.style.width = (list.length ? done * 100 / list.length : 0) + '%'; fill.style.background = color || 'var(--green)'; bar.appendChild(fill);
-    b.append(t, sm, bar);
+    b.append(t, big, sm, bar);
+    if (!firstOpen && id && left) firstOpen = b;
+    if (worldSel === id) selBtn = b;
     b.onclick = () => pickWorld(id);
     box.appendChild(b);
   };
   chip(null, 'كل المقاطع', '');
   chip('next', 'التحديث القادم', '#c9774d');
   WORLDS.list.forEach(w => chip(w.id, w.name, w.color));
+  const target = selBtn && worldSel ? selBtn : firstOpen;
+  if (target) { const x = target.offsetLeft - (box.clientWidth - target.offsetWidth) / 2; box.scrollLeft = x; }
   const info = $('winfo');
   if (worldSel) {
     const list = view(); const left = list.filter(c => !isDone(c)).length;
